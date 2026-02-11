@@ -1,6 +1,6 @@
 import './style.css'
 
-// 데이터 저장소 (이름을 v17로 올려서 완전히 새롭게 시작합니다)
+// 데이터 저장소 (v17 유지)
 let db: any = JSON.parse(localStorage.getItem('econ_v17_db') || JSON.stringify({
   globalRoles: [],
   globalStudents: [],
@@ -101,14 +101,17 @@ function render() {
 function renderLogin() {
   app.innerHTML = `
     <div style="padding:100px; text-align:center;">
-      <h1>${APP_TITLE}</h1>
-      <p style="color:#666;">아이디: admin / 비번: 1234 (선생님)</p>
-      <input id="l-id" placeholder="이름" style="padding:12px; width:200px; margin-bottom:10px; border:1px solid #ddd; border-radius:5px;"><br>
-      <input id="l-pw" type="password" placeholder="비밀번호" style="padding:12px; width:200px; margin-bottom:10px; border:1px solid #ddd; border-radius:5px;"><br>
-      <button id="l-btn" style="padding:12px 30px; background:#228be6; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">로그인</button>
+      <h1 style="margin-bottom:30px;">${APP_TITLE}</h1>
+      <div style="max-width:300px; margin:auto; background:#f8f9fa; padding:30px; border-radius:15px; border:1px solid #dee2e6;">
+        <input id="l-id" placeholder="이름을 입력하세요" style="padding:12px; width:100%; margin-bottom:10px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;"><br>
+        <input id="l-pw" type="password" placeholder="비밀번호" style="padding:12px; width:100%; margin-bottom:20px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;"><br>
+        <button id="l-btn" style="padding:12px; width:100%; background:#228be6; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size:1rem;">로그인</button>
+      </div>
+      <p style="margin-top:20px; color:#adb5bd; font-size:0.8rem;">관리자 계정은 별도로 로그인해 주세요.</p>
     </div>`;
   
   document.querySelector('#l-btn')?.addEventListener('click', () => {
+    // .trim()을 사용하여 앞뒤 공백을 완전히 제거합니다.
     const id = (document.querySelector('#l-id') as HTMLInputElement).value.trim();
     const pw = (document.querySelector('#l-pw') as HTMLInputElement).value.trim();
     
@@ -116,12 +119,13 @@ function renderLogin() {
       currentUser = { name: '선생님', isAdmin: true };
       render();
     } else {
-      const s = db.globalStudents.find((x:any) => x.name === id);
+      // 대소문자나 공백 문제를 방지하기 위해 trim 적용 후 찾기
+      const s = db.globalStudents.find((x:any) => x.name.trim() === id);
       if (s && pw === id + "123") {
         currentUser = { ...s, isAdmin: false };
         render();
       } else {
-        alert('아이디 또는 비밀번호를 다시 확인해 주세요!');
+        alert('정보가 일치하지 않습니다. 이름과 비밀번호를 다시 확인해 주세요!');
       }
     }
   });
@@ -183,6 +187,7 @@ function renderStudentSection() {
     </div>`;
 }
 
+// 전역 헬퍼 함수들
 (window as any).toggleDayLock = (idx: number) => {
   const activity = getWeeklyActivity(currentView);
   activity.dayLocks[idx] = !activity.dayLocks[idx];
@@ -244,7 +249,7 @@ function setupEvents() {
     if (dept && role && pay) { db.globalRoles.push({ dept, role, pay }); saveData(); render(); }
   });
   document.querySelector('#add-s-btn')?.addEventListener('click', () => {
-    const name = (document.querySelector('#s-n') as HTMLInputElement).value;
+    const name = (document.querySelector('#s-n') as HTMLInputElement).value.trim();
     const rIdx = (document.querySelector('#r-s') as HTMLSelectElement).value;
     if (name && rIdx) {
       const r = db.globalRoles[parseInt(rIdx)];
