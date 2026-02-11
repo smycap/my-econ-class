@@ -1,7 +1,7 @@
 import './style.css'
 
-// 데이터 저장 구조 (v16)
-let db: any = JSON.parse(localStorage.getItem('econ_v16_db') || JSON.stringify({
+// 데이터 저장소 (이름을 v17로 올려서 완전히 새롭게 시작합니다)
+let db: any = JSON.parse(localStorage.getItem('econ_v17_db') || JSON.stringify({
   globalRoles: [],
   globalStudents: [],
   weeklyActivity: {}, 
@@ -9,7 +9,7 @@ let db: any = JSON.parse(localStorage.getItem('econ_v16_db') || JSON.stringify({
   totalWithdrawn: 0
 }));
 
-let currentView: string = localStorage.getItem('econ_v16_view') || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-W1`;
+let currentView: string = localStorage.getItem('econ_v17_view') || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-W1`;
 let currentUser: any = null;
 const DAYS = ['월', '화', '수', '목', '금'];
 const APP_TITLE = "🏛️ 민영쌤의 경제교실"; 
@@ -18,7 +18,6 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 
 function getWeeklyActivity(viewKey: string) {
   if (!db.weeklyActivity[viewKey]) {
-    // dayLocks: [false, false, false, false, false] (월~금 잠금 상태)
     db.weeklyActivity[viewKey] = { checks: {}, isPaid: false, dayLocks: [false, false, false, false, false] };
   }
   return db.weeklyActivity[viewKey];
@@ -28,7 +27,6 @@ function render() {
   if (!currentUser) { renderLogin(); return; }
   const activity = getWeeklyActivity(currentView);
   
-  // 경제 지표 계산
   let expectedWeeklyTax = 0;
   let totalStudentBalance = 0;
   db.globalStudents.forEach((s: any) => {
@@ -62,7 +60,7 @@ function render() {
               <th style="padding:15px; width: 100px;">이름</th>
               <th style="padding:15px; width: 120px;">직업</th>
               ${DAYS.map((d, i) => `
-                <th style="padding:10px; width: 70px;">
+                <th style="padding:10px; width: 80px;">
                   ${d}<br>
                   ${currentUser.isAdmin ? `<button onclick="window.toggleDayLock(${i})" style="font-size:10px; cursor:pointer; background:${activity.dayLocks[i]?'#fa5252':'#adb5bd'}; color:white; border:none; border-radius:3px;">${activity.dayLocks[i]?'잠금해제':'마감하기'}</button>` : ''}
                 </th>`).join('')}
@@ -79,7 +77,6 @@ function render() {
                 <td style="padding:12px;">${s.role}</td>
                 ${DAYS.map((_, dIdx) => {
                   const isLocked = activity.dayLocks[dIdx] || activity.isPaid;
-                  // 수정 권한: 관리자(선생님)이거나, 잠기지 않은 날에 대표 학생인 경우
                   const canEdit = currentUser.isAdmin || (currentUser.isManager && !isLocked);
                   return `
                   <td style="padding:12px;">
@@ -102,15 +99,30 @@ function render() {
 }
 
 function renderLogin() {
-  app.innerHTML = `<div style="padding:100px; text-align:center;"><h1>${APP_TITLE}</h1><input id="l-id" placeholder="이름" style="padding:10px; margin-bottom:10px;"><br><input id="l-pw" type="password" placeholder="비밀번호" style="padding:10px; margin-bottom:10px;"><br><button id="l-btn" style="padding:10px 20px;">로그인</button></div>`;
+  app.innerHTML = `
+    <div style="padding:100px; text-align:center;">
+      <h1>${APP_TITLE}</h1>
+      <p style="color:#666;">아이디: admin / 비번: 1234 (선생님)</p>
+      <input id="l-id" placeholder="이름" style="padding:12px; width:200px; margin-bottom:10px; border:1px solid #ddd; border-radius:5px;"><br>
+      <input id="l-pw" type="password" placeholder="비밀번호" style="padding:12px; width:200px; margin-bottom:10px; border:1px solid #ddd; border-radius:5px;"><br>
+      <button id="l-btn" style="padding:12px 30px; background:#228be6; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">로그인</button>
+    </div>`;
+  
   document.querySelector('#l-btn')?.addEventListener('click', () => {
-    const id = (document.querySelector('#l-id') as HTMLInputElement).value;
-    const pw = (document.querySelector('#l-pw') as HTMLInputElement).value;
-    if (id === 'admin' && pw === '1234') { currentUser = { name: '선생님', isAdmin: true }; render(); }
-    else {
-      const s = db.globalStudents.find((x:any)=>x.name===id);
-      if (s && pw === id + "123") { currentUser = { ...s, isAdmin: false }; render(); }
-      else { alert('정보 확인!'); }
+    const id = (document.querySelector('#l-id') as HTMLInputElement).value.trim();
+    const pw = (document.querySelector('#l-pw') as HTMLInputElement).value.trim();
+    
+    if (id === 'admin' && pw === '1234') {
+      currentUser = { name: '선생님', isAdmin: true };
+      render();
+    } else {
+      const s = db.globalStudents.find((x:any) => x.name === id);
+      if (s && pw === id + "123") {
+        currentUser = { ...s, isAdmin: false };
+        render();
+      } else {
+        alert('아이디 또는 비밀번호를 다시 확인해 주세요!');
+      }
     }
   });
 }
@@ -120,7 +132,7 @@ function renderAdminSection() {
   return `
     <div style="background: #fff9db; padding: 20px; border-radius: 12px; border: 1px solid #fab005; display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
       <div style="background:white; padding:15px; border-radius:8px;">
-        <p style="margin:0 0 10px 0;"><b>👤 학생 정보 수정 및 권한</b></p>
+        <p style="margin:0 0 10px 0;"><b>👤 학생 관리 (수정/삭제/대표)</b></p>
         <select id="edit-s-idx" style="width:100%; padding:8px; margin-bottom:10px;">
           <option value="">수정/삭제할 학생 선택</option>
           ${db.globalStudents.map((s:any, i:number) => `<option value="${i}">${s.name} (${s.role})${s.isManager?' [대표]':''}</option>`).join('')}
@@ -130,23 +142,23 @@ function renderAdminSection() {
           <input id="edit-role" placeholder="직업">
           <input id="edit-pay" type="number" placeholder="주급">
         </div>
-        <div style="display:flex; gap:5px;">
-          <button id="edit-s-btn" style="flex:2; background:#fd7e14; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">정보수정</button>
-          <button id="set-manager-btn" style="flex:2; background:#495057; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">대표 지정/해제</button>
-          <button id="delete-s-btn" style="flex:1; background:#fa5252; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">삭제</button>
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+          <button id="edit-s-btn" style="flex:1; background:#fd7e14; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">정보수정</button>
+          <button id="set-manager-btn" style="flex:1; background:#495057; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">대표지정</button>
+          <button id="delete-s-btn" style="flex:1; background:#fa5252; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer;">삭제</button>
         </div>
       </div>
 
       <div style="background:white; padding:15px; border-radius:8px; text-align:center;">
-        <p style="margin:0 0 10px 0;"><b>🛠️ 주간 정산 및 마감</b></p>
+        <p style="margin:0 0 10px 0;"><b>🛠️ 주간 정산 및 도구</b></p>
         ${!activity.isPaid 
-          ? `<button id="pay-btn" style="background:#228be6; color:white; border:none; padding:12px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;">💰 이번 주 월급 지급 (최종)</button>`
+          ? `<button id="pay-btn" style="background:#228be6; color:white; border:none; padding:12px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;">💰 이번 주 월급 지급</button>`
           : `<button id="unpay-btn" style="background:#fab005; color:black; border:none; padding:12px; border-radius:5px; width:100%; cursor:pointer; font-weight:bold;">🔄 정산 취소</button>`
         }
-        <div style="display:flex; justify-content:center; gap:10px; font-size:0.8rem; margin-top:25px;">
-          <button id="export-btn">💾 백업</button>
+        <div style="display:flex; justify-content:center; gap:10px; font-size:0.8rem; margin-top:20px;">
+          <button id="export-btn" style="cursor:pointer;">💾 백업</button>
           <label style="cursor:pointer; background:#eee; padding:2px 8px; border-radius:3px;">📂 복구<input type="file" id="import-btn" style="display:none;"></label>
-          <button id="logout-btn">로그아웃</button>
+          <button id="logout-btn" style="cursor:pointer; color:red;">로그아웃</button>
         </div>
       </div>
 
@@ -163,15 +175,14 @@ function renderStudentSection() {
     <div style="display:flex; justify-content:space-between; align-items:center; background:#e7f5ff; padding:20px; border-radius:12px; border:2px solid #339af0;">
       <div>
         <h2 style="margin:0;">내 잔고: ${my?.balance.toLocaleString()}원</h2>
-        <span style="background:#339af0; color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem;">
-          ${my?.isManager ? '⭐ 대표 학생 권한 보유' : '일반 학생'}
+        <span style="background:${my?.isManager?'#e67e22':'#339af0'}; color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem;">
+          ${my?.isManager ? '⭐ 대표 학생 (업무 체크 권한)' : '일반 학생'}
         </span>
       </div>
-      <button id="logout-btn">로그아웃</button>
+      <button id="logout-btn" style="padding:10px 20px; border-radius:5px; border:1px solid #ddd; cursor:pointer;">로그아웃</button>
     </div>`;
 }
 
-// ⭐️ 전역 함수들
 (window as any).toggleDayLock = (idx: number) => {
   const activity = getWeeklyActivity(currentView);
   activity.dayLocks[idx] = !activity.dayLocks[idx];
@@ -182,7 +193,6 @@ function renderStudentSection() {
   const activity = getWeeklyActivity(currentView);
   const isLocked = activity.dayLocks[dIdx] || activity.isPaid;
   const canEdit = currentUser.isAdmin || (currentUser.isManager && !isLocked);
-  
   if (!canEdit) return;
   if (!activity.checks[name]) activity.checks[name] = [false, false, false, false, false];
   activity.checks[name][dIdx] = !activity.checks[name][dIdx];
@@ -196,24 +206,19 @@ function renderStudentSection() {
   if (week > 5) { week = 1; month++; } else if (week < 1) { week = 5; month--; }
   if (month > 12) { month = 3; } else if (month < 3) { month = 12; }
   currentView = `${y}-${String(month).padStart(2, '0')}-W${week}`;
-  localStorage.setItem('econ_v16_view', currentView);
+  localStorage.setItem('econ_v17_view', currentView);
   render();
 };
 
 function setupEvents() {
   document.querySelectorAll('#logout-btn').forEach(b => b.addEventListener('click', () => { currentUser = null; render(); }));
-  
-  // 대표 권한 지정
   document.querySelector('#set-manager-btn')?.addEventListener('click', () => {
     const sIdx = (document.querySelector('#edit-s-idx') as HTMLSelectElement).value;
     if (sIdx !== "") {
-      const s = db.globalStudents[parseInt(sIdx)];
-      s.isManager = !s.isManager;
+      db.globalStudents[parseInt(sIdx)].isManager = !db.globalStudents[parseInt(sIdx)].isManager;
       saveData(); render();
-      alert(`${s.name} 학생의 대표 권한이 ${s.isManager?'설정':'해제'}되었습니다.`);
     }
   });
-
   document.querySelector('#edit-s-btn')?.addEventListener('click', () => {
     const sIdx = (document.querySelector('#edit-s-idx') as HTMLSelectElement).value;
     const newDept = (document.querySelector('#edit-dept') as HTMLInputElement).value;
@@ -225,22 +230,19 @@ function setupEvents() {
       saveData(); render(); alert('수정 완료!');
     }
   });
-
   document.querySelector('#delete-s-btn')?.addEventListener('click', () => {
     const sIdx = (document.querySelector('#edit-s-idx') as HTMLSelectElement).value;
-    if (sIdx !== "" && confirm('학생을 삭제하시겠습니까?')) {
+    if (sIdx !== "" && confirm('정말 삭제하시겠습니까?')) {
       db.globalStudents.splice(parseInt(sIdx), 1);
       saveData(); render();
     }
   });
-
   document.querySelector('#add-r-btn')?.addEventListener('click', () => {
     const dept = (document.querySelector('#d') as HTMLInputElement).value;
     const role = (document.querySelector('#r') as HTMLInputElement).value;
     const pay = parseInt((document.querySelector('#p') as HTMLInputElement).value);
     if (dept && role && pay) { db.globalRoles.push({ dept, role, pay }); saveData(); render(); }
   });
-
   document.querySelector('#add-s-btn')?.addEventListener('click', () => {
     const name = (document.querySelector('#s-n') as HTMLInputElement).value;
     const rIdx = (document.querySelector('#r-s') as HTMLSelectElement).value;
@@ -250,10 +252,9 @@ function setupEvents() {
       saveData(); render();
     }
   });
-
   document.querySelector('#pay-btn')?.addEventListener('click', () => {
     const activity = getWeeklyActivity(currentView);
-    if (confirm('주간 정산을 완료하시겠습니까?')) {
+    if (confirm('주간 정산을 완료합니까?')) {
       db.globalStudents.forEach((s: any) => {
         const checks = activity.checks[s.name] || [false,false,false,false,false];
         const count = checks.filter((v: any) => v).length;
@@ -263,10 +264,9 @@ function setupEvents() {
       activity.isPaid = true; saveData(); render();
     }
   });
-
   document.querySelector('#unpay-btn')?.addEventListener('click', () => {
     const activity = getWeeklyActivity(currentView);
-    if (confirm('정산을 취소하시겠습니까?')) {
+    if (confirm('정산을 취소합니까?')) {
       db.globalStudents.forEach((s: any) => {
         const checks = activity.checks[s.name] || [false,false,false,false,false];
         const count = checks.filter((v: any) => v).length;
@@ -276,13 +276,11 @@ function setupEvents() {
       activity.isPaid = false; saveData(); render();
     }
   });
-
   document.querySelector('#export-btn')?.addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(db)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `경제교실_백업_v16.json`; a.click();
+    a.download = `경제교실_백업.json`; a.click();
   });
-
   document.querySelector('#import-btn')?.addEventListener('change', (e: any) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -292,6 +290,6 @@ function setupEvents() {
 }
 
 function saveData() {
-  localStorage.setItem('econ_v16_db', JSON.stringify(db));
+  localStorage.setItem('econ_v17_db', JSON.stringify(db));
 }
 render();
